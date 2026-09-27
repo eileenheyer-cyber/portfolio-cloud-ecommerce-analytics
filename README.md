@@ -5,7 +5,7 @@ End-to-end Cloud-Datenpipeline für WooCommerce + GA4 → Azure → Power BI
 
 ## Architektur
 
-![E-Commerce Cloud-Architektur – Batch-Only-Konzept](docs/architecture_concept.png)
+![E-Commerce Cloud-Architektur – Batch-Only-Konzept](docs/architecture.png)
 
 Architekturkonzept aus der Konzeptionsphase (Quelle: [docs/architecture_concept.html](docs/architecture_concept.html)).
 
