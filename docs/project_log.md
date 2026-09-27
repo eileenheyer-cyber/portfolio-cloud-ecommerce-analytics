@@ -35,8 +35,37 @@ and why, what went wrong and how it was solved.
   (Spark cluster, roughly €10–15/month when run daily); copy activities and orchestration cost about €1–3/month.
 - Alternatives considered: dbt Core (free, SQL in git, built-in tests) – rejected because it runs outside Azure
   and would not demonstrate the cloud services of the concept.
+- **Separate storage account for the Data Lake** (`stecommercelake26`) – the existing account `rgecommerceanalyticb0b6`
+  belongs to the Function App (internal files, no hierarchical namespace) and stays untouched.
+- **Data Lake settings:** hierarchical namespace on (ADLS Gen2), Standard performance, LRS redundancy (cheapest),
+  access tier Hot, region Germany West Central (same as the database).
+- **Anonymous access disabled; access only through Microsoft Entra ID (role-based)** – the lake stores order data
+  with customer names, e-mail and billing addresses (personal data under GDPR), and no part of the pipeline needs
+  public access: scripts, Data Factory and Power BI sign in with an Azure identity.
+- **WooCommerce data is loaded every 2 weeks, not daily** – the shop has few changes (17 orders so far; categories
+  and products rarely change), so fewer runs are enough and save cost. Only the schedule (trigger) is affected;
+  the extract scripts stay the same. The schedule for GA4 and Search Console is decided later
+  (Search Console keeps only 16 months of data).
+- **Categories are still extracted from their own API endpoint** – the products API lists a product's categories
+  without `parent`, so the main/subcategory hierarchy (needed for drill-down in Power BI) only comes from the
+  categories endpoint; also 6 of 29 categories have no products and would be missing.
+- **Only the needed fields are requested from the API (`_fields`)** – e.g. categories: `id,name,slug,parent`.
+  Descriptions, images and SEO data (Yoast) are not needed (file size 346 KB → 3 KB). Raw now means
+  "requested fields, unchanged" – data minimization, which matters most later for orders (personal data).
+- **Storage account keys disabled, Entra ID as default in the portal** – no shared master keys that give full access
+  without a person attached; every access goes through a role assignment (e.g. *Storage Blob Data Contributor*).
 
 **Open / next steps**
+- [x] Create the Data Lake storage account `stecommercelake26` (settings verified with Azure CLI)
+- [x] Create the `raw` container
+- [x] Create Data Factory `adf-ecommerce-analytics-26` (Germany West Central, V2, Git configured later, no managed VNet, public endpoint)
+- [x] Set a budget alert `budget-ecommerce-analytics` (€10/month on `rg-ecommerce-analytics`; e-mail at 80 % and 100 % actual cost and at 100 % forecasted cost)
+- [x] Give the Data Factory managed identity the role *Storage Blob Data Contributor* on the Data Lake (no keys)
+- [x] Give the Data Factory managed identity access to the SQL database (Entra user `FROM EXTERNAL PROVIDER`,
+      roles `db_datareader`, `db_datawriter`, `db_ddladmin`)
+- [x] `extract_categories.py` saves the unchanged API response as JSON to the Data Lake
+      (`raw/woocommerce/categories/categories_YYYY-MM-DD.json`, login via `DefaultAzureCredential`); SQL load kept until the pipeline works
+- [x] Assign myself the role *Storage Blob Data Contributor* on the Data Lake (needed to write files with `az login`)
 - [ ] Set cost rules when Data Factory is created: turn off Data Flow debug after use, no daily trigger while building,
       budget alert in Azure Cost Management, delete Data Factory after grading
 - [x] Update README (`dbt/` replaced by Azure Data Factory)
