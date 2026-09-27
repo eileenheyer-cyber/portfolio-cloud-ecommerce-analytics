@@ -1,7 +1,25 @@
-# cloud-ecommerce-analytics
+# Cloud E-Commerce Analytics
 
-End-to-end Cloud-Datenpipeline für WooCommerce + GA4 → Azure → Power BI
-(IU Cloud Programming Portfolio, DLBSEPCP01_D)
+End-to-end Cloud-Datenpipeline auf Microsoft Azure für einen realen Online-Shop für Wohn- und Lifestyleprodukte ([luandla.de](https://luandla.de/)). Shop-, Website- und Suchdaten werden täglich per API abgerufen, in Azure gespeichert, bereinigt und in Power BI ausgewertet.
+
+Portfolio-Projekt im Kurs **Cloud Programming** (IU, DLBSEPCP01_D).
+
+## Ziel
+
+- **Fachlich:** Verkäufe, Website-Traffic und Google-Suche in einem gemeinsamen Datenmodell zusammenführen, um Fragen wie diese zu beantworten: Welche Produkte und Kategorien verkaufen sich? Über welche Kanäle kommen Besucher in den Shop? Mit welchen Suchbegriffen wird der Shop bei Google gefunden?
+- **Technisch:** Eine Cloud-Architektur mit Azure-Diensten aufbauen – Datenspeicherung, Orchestrierung, Secret-Management, Monitoring und Infrastructure as Code – im Batch-Betrieb und mit einem Budget von rund 10 € pro Monat.
+
+## Datenquellen
+
+| Quelle | Schnittstelle | Inhalt |
+|---|---|---|
+| WooCommerce | REST API | Bestellungen, Bestellpositionen, Produkte, Kategorien (Kunden werden aus den Rechnungsdaten der Bestellungen abgeleitet) |
+| Google Analytics 4 | GA4 Data API | Tägliche Berichte: Traffic nach Kanal, Events, Landingpages, Seitenaufrufe, Zielgruppe |
+| Google Search Console | Search Console API | Suchleistung pro Tag: Suchanfragen, Seiten, Impressionen, Klicks, Klickrate, Position |
+
+## Technologien
+
+Python · Azure SQL Database (serverless) · Azure Data Lake Storage Gen2 · Azure Data Factory · Azure Functions · Azure Key Vault · Azure Monitor · Terraform · GitHub Actions · Power BI
 
 ## Architektur
 
