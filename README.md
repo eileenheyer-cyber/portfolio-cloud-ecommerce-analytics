@@ -5,50 +5,9 @@ End-to-end Cloud-Datenpipeline für WooCommerce + GA4 → Azure → Power BI
 
 ## Architektur
 
-Batch-Pipeline auf Azure, ausgelegt auf ein Budget von rund 10 € pro Monat. Gestrichelt = geplant.
+![E-Commerce Cloud-Architektur – Batch-Only-Konzept](docs/architecture_concept.png)
 
-```mermaid
-flowchart LR
-    subgraph Quellen["Datenquellen"]
-        WC["WooCommerce REST API<br/>Bestellungen, Produkte, Kategorien"]
-        GA4["GA4 Data API<br/>Traffic und Events"]
-        GSC["Search Console API<br/>Suchanfragen"]
-    end
-
-    subgraph Extraktion["Extraktion"]
-        PY["Python-Skripte<br/>data/extract_*.py"]
-        FUNC["Azure Functions<br/>täglicher Abruf"]
-    end
-
-    subgraph SQL["Azure SQL Database (serverless, Auto-Pause)"]
-        RAW[("raw<br/>Rohdaten")]
-        STG[("staging<br/>bereinigt")]
-        MART[("mart<br/>Dimensionen und Fakten")]
-    end
-
-    PBI["Power BI<br/>Dashboards"]
-    DBT["dbt<br/>Transformationen"]
-    TF["Terraform<br/>Infrastructure as Code"]
-    GH["GitHub<br/>Versionskontrolle"]
-    MON["Azure Monitor<br/>Logs und Alerts"]
-
-    WC --> PY
-    GA4 --> PY
-    GSC --> PY
-    PY --> RAW
-    PY -.-> FUNC
-    RAW --> STG --> MART --> PBI
-    DBT -.-> STG
-    DBT -.-> MART
-    TF -.->|provisioniert| SQL
-    TF -.->|provisioniert| FUNC
-    GH --- TF
-    MON -.->|überwacht| FUNC
-    MON -.->|überwacht| SQL
-
-    classDef geplant stroke-dasharray: 5 5
-    class FUNC,DBT,TF,MON,STG,MART,PBI geplant
-```
+Architekturkonzept aus der Konzeptionsphase (Quelle: [docs/architecture_concept.html](docs/architecture_concept.html)).
 
 ## Struktur
 
