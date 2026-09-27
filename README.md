@@ -13,7 +13,7 @@ Architekturkonzept aus der Konzeptionsphase (Quelle: [docs/architecture_concept.
 
 - `data/` – Python-Extraktionsskripte (`extract_*.py`): laden WooCommerce (Bestellungen, Bestellpositionen, Produkte, Kategorien), GA4 und Google Search Console per API und schreiben die Rohdaten ins Schema `raw` (Full Refresh)
 - `sql/` – SQL-Skripte für Azure SQL Database: Schemas `raw`, `staging`, `mart` und die Tabellen der Raw-Schicht
-- `dbt/` – Transformationsmodelle: `staging` (Bereinigung) → `mart` (Dimensionen und Fakten für Power BI) *(geplant)*
+- Azure Data Factory – Transformationen: `raw` → `staging` (Bereinigung) → `mart` (Dimensionen und Fakten für Power BI); wird im Azure-Portal erstellt *(geplant)*
 - `terraform/` – Infrastructure as Code: Azure-Ressourcen (Resource Group, SQL Server, Datenbank, Function App) *(geplant)*
 - `function_app/` – Azure Functions (Python): automatisierter, zeitgesteuerter Ablauf der Extraktionsskripte *(geplant)*
 - `docs/` – Tabellendesign und Projektlog

@@ -25,6 +25,23 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
+## 2026-09-27 – Transformation tool: Azure Data Factory instead of dbt
+
+**Decisions**
+- **Azure Data Factory for the transformations** (`raw` → `staging` → `mart`) instead of dbt – this is a cloud portfolio
+  project (IU Cloud Programming), so it should show Azure services and cloud concepts; dbt is not an Azure service.
+  This also follows the architecture concept (`docs/architecture.png`).
+- **Cost is acceptable because Data Factory is only used short-term** – the expensive part are Data Flows
+  (Spark cluster, roughly €10–15/month when run daily); copy activities and orchestration cost about €1–3/month.
+- Alternatives considered: dbt Core (free, SQL in git, built-in tests) – rejected because it runs outside Azure
+  and would not demonstrate the cloud services of the concept.
+
+**Open / next steps**
+- [ ] Set cost rules when Data Factory is created: turn off Data Flow debug after use, no daily trigger while building,
+      budget alert in Azure Cost Management, delete Data Factory after grading
+- [x] Update README (`dbt/` replaced by Azure Data Factory)
+- [x] Data Lake and Data Factory are created by hand in the Azure portal first (Terraform later)
+
 ## 2026-09-25 – Raw layer for all three data sources
 
 **Done**
