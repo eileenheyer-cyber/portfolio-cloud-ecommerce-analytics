@@ -9,6 +9,8 @@ End-to-end Cloud-Datenpipeline für WooCommerce + GA4 → Azure → Power BI
 
 Architekturkonzept aus der Konzeptionsphase (Quelle: [docs/architecture_concept.html](docs/architecture_concept.html)).
 
+**Ergänzung in der Umsetzung: Google Search Console API.** Zusätzlich zu WooCommerce und GA4 wird die Search Console als dritte Datenquelle geladen. Sie liefert die Suchleistung der Website in der Google-Suche: Suchanfragen, Seiten, Impressionen, Klicks, Klickrate und durchschnittliche Position pro Tag, Land und Gerät. Damit ergänzt sie die SEO-Sicht, die GA4 allein nicht abdeckt: welche Suchbegriffe Besucher in den Shop bringen. Der Zugriff läuft über dasselbe Google-Cloud-Dienstkonto wie bei GA4, sodass kein zusätzlicher Dienst und keine zusätzlichen Kosten entstehen.
+
 ## Struktur
 
 - `data/` – Python-Extraktionsskripte (`extract_*.py`): laden WooCommerce (Bestellungen, Bestellpositionen, Produkte, Kategorien), GA4 und Google Search Console per API und schreiben die Rohdaten ins Schema `raw` (Full Refresh)
