@@ -25,7 +25,32 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
-## 2026-09-27 – Transformation tool: Azure Data Factory instead of dbt
+## 2026-09-27 – Git, Data Lake and first Data Factory pipeline
+
+**Done**
+- Moved the WooCommerce keys and the Google key file path into `.env` (read with `python-dotenv`, ignored by git);
+  `.env.example` documents the variables.
+- Initialized git and pushed the project to GitHub (`eileenheyer-cyber/portfolio-cloud-ecommerce-analytics`);
+  `practice/` stays local only.
+- README: project introduction, goals, data sources, technologies, architecture diagram from the concept phase,
+  structure updated (Data Factory instead of dbt, Terraform planned).
+- Created the Data Lake storage account `stecommercelake26` (ADLS Gen2) with container `raw`; settings verified
+  with the Azure CLI. Role *Storage Blob Data Contributor* for me.
+- Created Data Factory `adf-ecommerce-analytics-26` (Germany West Central, V2, Git configured later,
+  no managed VNet, public endpoint).
+- Budget alert `budget-ecommerce-analytics`: €10/month on `rg-ecommerce-analytics`, e-mail at 80 % and 100 %
+  actual cost and at 100 % forecasted cost.
+- Data Factory managed identity: role *Storage Blob Data Contributor* on the Data Lake; database user
+  `FROM EXTERNAL PROVIDER` with `db_datareader`, `db_datawriter`, `db_ddladmin`.
+- `extract_categories.py` saves the API response (fields `id,name,slug,parent`) as JSON to
+  `raw/woocommerce/categories/categories_YYYY-MM-DD.json` (login via `DefaultAzureCredential`);
+  the direct SQL load stays until all pipelines work.
+- First Data Factory pipeline `pl_copy_woocommerce_categories_to_raw`:
+  - linked services `ls_adls_datalake` and `ls_azure_sql` (managed identity, no keys or passwords)
+  - datasets `ds_json_woocommerce_categories` (source) and `ds_sql_raw_woocommerce_categories` (sink)
+  - Copy activity `copy_categories_json_to_sql`: pre-copy script `DELETE FROM raw.woocommerce_categories`
+    (full refresh), mapping `id→category_id`, `name→name`, `slug→slug`, `parent→parent_id`
+  - debug run successful: 29 categories copied (checked via `loaded_at`)
 
 **Decisions**
 - **Azure Data Factory for the transformations** (`raw` → `staging` → `mart`) instead of dbt – this is a cloud portfolio
@@ -54,22 +79,34 @@ and why, what went wrong and how it was solved.
   "requested fields, unchanged" – data minimization, which matters most later for orders (personal data).
 - **Storage account keys disabled, Entra ID as default in the portal** – no shared master keys that give full access
   without a person attached; every access goes through a role assignment (e.g. *Storage Blob Data Contributor*).
+- **SQL firewall exception "Allow Azure services and resources to access this server"** – Data Factory runs on
+  Azure machines without a fixed IP, so a single IP rule is not possible. The exception only opens the network layer;
+  access still requires an Entra ID login (no SQL passwords) and a database user (only me and Data Factory).
+  In production a private endpoint with a managed virtual network would be used instead (extra cost, not needed here).
+- **Naming convention for Azure resources** (Microsoft Cloud Adoption Framework): `rg-`, `st`, `adf-`, `fn-`, `sql`;
+  in Data Factory `ls_` (linked service), `ds_` (dataset), `pl_` (pipeline).
+- **Next pipelines use generic datasets with parameters** (one JSON dataset for folder/file, one SQL dataset for
+  schema/table) instead of two datasets per table; one Copy activity per table with its own column mapping.
+  A ForEach loop over a table list is possible later.
+
+**Problems & solutions**
+- WooCommerce requests hung at `sock.connect` → broken IPv6 on the home Wi-Fi; set macOS "Configure IPv6" to Link-local only
+- Linked service not shown when creating a dataset → it had never been created/published; in Data Factory every change
+  must be saved with *Publish all*
+- Data Factory could not reach SQL → enabled the server exception "Allow Azure services and resources to access this server"
+  (access still requires an Entra ID user)
 
 **Open / next steps**
-- [x] Create the Data Lake storage account `stecommercelake26` (settings verified with Azure CLI)
-- [x] Create the `raw` container
-- [x] Create Data Factory `adf-ecommerce-analytics-26` (Germany West Central, V2, Git configured later, no managed VNet, public endpoint)
-- [x] Set a budget alert `budget-ecommerce-analytics` (€10/month on `rg-ecommerce-analytics`; e-mail at 80 % and 100 % actual cost and at 100 % forecasted cost)
-- [x] Give the Data Factory managed identity the role *Storage Blob Data Contributor* on the Data Lake (no keys)
-- [x] Give the Data Factory managed identity access to the SQL database (Entra user `FROM EXTERNAL PROVIDER`,
-      roles `db_datareader`, `db_datawriter`, `db_ddladmin`)
-- [x] `extract_categories.py` saves the unchanged API response as JSON to the Data Lake
-      (`raw/woocommerce/categories/categories_YYYY-MM-DD.json`, login via `DefaultAzureCredential`); SQL load kept until the pipeline works
-- [x] Assign myself the role *Storage Blob Data Contributor* on the Data Lake (needed to write files with `az login`)
-- [ ] Set cost rules when Data Factory is created: turn off Data Flow debug after use, no daily trigger while building,
-      budget alert in Azure Cost Management, delete Data Factory after grading
-- [x] Update README (`dbt/` replaced by Azure Data Factory)
-- [x] Data Lake and Data Factory are created by hand in the Azure portal first (Terraform later)
+- [ ] Generic datasets with parameters; the pipeline picks the newest file automatically (file name is fixed now)
+- [ ] Save products, orders and GA4/Search Console data as JSON to the lake; one Copy activity per table
+      (`order_items` and `product_categories` come from nested lists via the collection reference)
+- [ ] Remove the direct SQL load (sections 4 and 5) from the extract scripts once the pipelines work
+- [ ] Data Factory cost rules: turn off Data Flow debug after use, no trigger while building, delete after grading
+- [ ] Connect Data Factory to GitHub (pipelines stored as JSON in the repository)
+- [ ] Rewrite `docs/table_design.md` (current mart design is based on the GA4 BigQuery export)
+- [ ] Design and create the `staging` and `mart` tables (`sql/03_…`, `sql/04_…`)
+- [ ] Add `timeout=` to the WooCommerce API requests
+- [ ] Later: trigger every 2 weeks, Azure Functions, Key Vault, Azure Monitor, Terraform
 
 ## 2026-09-25 – Raw layer for all three data sources
 
