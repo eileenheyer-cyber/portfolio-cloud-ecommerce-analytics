@@ -1,0 +1,22 @@
+# Secrets
+.env
+*.json.key
+keys_*.json
+
+# Python
+__pycache__/
+*.pyc
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+
+# Azure Functions
+function_app/local.settings.json
+
+# macOS
+.DS_Store
+
+# Personal practice files (kept local only)
+practice/
