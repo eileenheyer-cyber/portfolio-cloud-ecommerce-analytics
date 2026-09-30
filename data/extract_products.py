@@ -10,13 +10,11 @@
 # 1. IMPORT LIBRARIES
 # ------------------------------------------------------------
 import json
+import os
 from datetime import date
+
 from azure.identity import DefaultAzureCredential
 from azure.storage.filedatalake import DataLakeServiceClient
-
-
-
-import os
 import requests
 import pandas as pd
 import mssql_python
