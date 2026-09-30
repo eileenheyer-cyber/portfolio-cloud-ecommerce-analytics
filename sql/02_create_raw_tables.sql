@@ -139,10 +139,10 @@ BEGIN
         sku NVARCHAR(100),
         brand NVARCHAR(100),
 
-        -- Pricing information
-        price DECIMAL(18,2),           -- current price
-        regular_price DECIMAL(18,2),
-        sale_price DECIMAL(18,2),
+        -- Pricing information (text as delivered by the API, converted in staging)
+        price NVARCHAR(20),            -- current price
+        regular_price NVARCHAR(20),
+        sale_price NVARCHAR(20),
 
         -- Inventory information
         stock_quantity INT,

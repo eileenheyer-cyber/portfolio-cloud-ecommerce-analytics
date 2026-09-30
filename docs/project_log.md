@@ -25,6 +25,62 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
+## 2026-09-30 – Products and product categories via Data Factory
+
+**Done**
+- Copy activity `copy_products_json_to_sql` in `pl_copy_woocommerce_to_raw` (runs after categories, on success):
+  source `ds_json_lake` (`woocommerce/products`, `products_<load_date>.json`), pre-copy script
+  `DELETE FROM raw.woocommerce_products`, mapping `id→product_id`, `$['brands'][0]['name']→brand`.
+  Debug run successful: 55 products.
+- Copy activity `copy_product_categories_json_to_sql` (runs after products, on success): same products file,
+  collection reference `$['categories']`, mapping `$['id']→product_id` (product) and `['id']→category_id` (category).
+  Debug run successful: 142 links, 55 products, 23 categories.
+- Changed `price`, `regular_price`, `sale_price` in `raw.woocommerce_products` from `DECIMAL(18,2)` to `NVARCHAR(20)`
+  (`ALTER TABLE` in the database and `sql/02_create_raw_tables.sql`).
+- Checked the 6 categories without products: Leuchten, Tischelampen, Accessoires, Haustierbedarf,
+  Vase (under Wohnen & Deko), Grußkarten (under Geschenke).
+
+**Decisions**
+- **Prices are stored as text in raw** – WooCommerce delivers prices as text, and an empty `sale_price`/`regular_price`
+  is `''`, which cannot be converted to `DECIMAL`. Raw keeps the values as delivered; staging converts them
+  (e.g. `TRY_CAST(NULLIF(price, '') AS DECIMAL(18,2))`). Alternative rejected: fault tolerance in the Copy activity,
+  because it skips rows and products would be missing.
+- **All three prices are kept** – `price` (current), `regular_price` (normal) and `sale_price` (discount) together show
+  whether and how much a product is discounted.
+- **Product categories as a separate bridge table** – one product has several categories and one category has several
+  products (many-to-many); a category column in the products table could only hold one of them.
+- **Generic datasets have no stored schema** – `ds_json_lake` is used for different files; the mapping is stored in
+  each Copy activity.
+
+**Problems & solutions**
+- *Schemas importieren* showed the category fields for the products file → `ds_json_lake` still had the categories
+  schema stored; cleared it on the dataset's *Schema* tab
+- `PathNotFound` → space at the end of `folder_path` (`woocommerce/products `)
+- *Alle veröffentlichen* failed with "Die Zuordnung sink ist leer" → Data Factory validates the whole factory
+  before publishing; finish the mapping first, then publish
+- `Column 'regular_price' contains an invalid value ''` → prices changed to `NVARCHAR(20)`; the mapping still had the
+  old sink type `Decimal` stored, so changed it to `String`/`nvarchar` in the pipeline code (`{}`)
+- `brand` was `NULL` for all 55 products → the brand row had been deleted from the mapping together with the other
+  brand rows; added it again
+- `Column 'product_id' does not allow DBNull.Value` → a new mapping row in the UI saves the input as a field name
+  (`$['$[\'id\']']`); corrected the paths in the pipeline code to `$['id']` and `['id']`
+- Debug runs wait 1–3 minutes "In Warteschlange" → Data Factory starts its compute and the database wakes up
+  from auto-pause; normal
+
+**Open / next steps**
+- [ ] `extract_orders.py`: save orders as JSON to the lake; Copy activities for `orders` and `order_items`
+      (collection reference on `line_items`)
+- [ ] Save GA4/Search Console data as JSON to the lake; one Copy activity per table
+- [ ] Remove the direct SQL load (sections 4 and 5) from the extract scripts once the pipelines work
+- [ ] Staging: convert prices (`''` → `NULL`, text → number), HTML unescape (e.g. `Wohnen &amp; Deko`)
+- [ ] Fix the category name "Tischelampen" in WooCommerce (typo)
+- [ ] Data Factory cost rules: turn off Data Flow debug after use, no trigger while building, delete after grading
+- [ ] Connect Data Factory to GitHub (pipelines stored as JSON in the repository)
+- [ ] Rewrite `docs/table_design.md` (current mart design is based on the GA4 BigQuery export)
+- [ ] Design and create the `staging` and `mart` tables (`sql/03_…`, `sql/04_…`)
+- [ ] Add `timeout=` to the WooCommerce API requests
+- [ ] Later: trigger every 2 weeks, Azure Functions, Key Vault, Azure Monitor, Terraform
+
 ## 2026-09-27 – Git, Data Lake and first Data Factory pipeline
 
 **Done**
@@ -51,6 +107,13 @@ and why, what went wrong and how it was solved.
   - Copy activity `copy_categories_json_to_sql`: pre-copy script `DELETE FROM raw.woocommerce_categories`
     (full refresh), mapping `id→category_id`, `name→name`, `slug→slug`, `parent→parent_id`
   - debug run successful: 29 categories copied (checked via `loaded_at`)
+- Made the Data Factory datasets generic: `ds_json_lake` (parameters `folder_path`, `file_name`) and `ds_sql_table`
+  (parameters `schema_name`, `table_name`); pipeline parameter `load_date` builds the file name
+  `@concat('categories_', pipeline().parameters.load_date, '.json')`. Old table-specific datasets deleted.
+  Pipeline renamed to `pl_copy_woocommerce_to_raw` (one pipeline per source, one Copy activity per table).
+  Debug run successful (29 categories).
+- `extract_products.py` saves the products as JSON to `raw/woocommerce/products/products_YYYY-MM-DD.json`
+  (`_fields`: 14 fields incl. the nested lists `categories` and `brands`; 55 products, 142 category links).
 
 **Decisions**
 - **Azure Data Factory for the transformations** (`raw` → `staging` → `mart`) instead of dbt – this is a cloud portfolio
@@ -97,7 +160,8 @@ and why, what went wrong and how it was solved.
   (access still requires an Entra ID user)
 
 **Open / next steps**
-- [ ] Generic datasets with parameters; the pipeline picks the newest file automatically (file name is fixed now)
+- [x] Copy activities for `products` (brand from `$['brands'][0]['name']`, prices text → number) and
+      `product_categories` (collection reference on `categories`)
 - [ ] Save products, orders and GA4/Search Console data as JSON to the lake; one Copy activity per table
       (`order_items` and `product_categories` come from nested lists via the collection reference)
 - [ ] Remove the direct SQL load (sections 4 and 5) from the extract scripts once the pipelines work
