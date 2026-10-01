@@ -1,6 +1,7 @@
 # ============================================================
 # ORDERS INGESTION
-# Extract orders from WooCommerce REST API
+# Extract orders from WooCommerce REST API,
+# save them as JSON to the Data Lake (raw/woocommerce/orders)
 # and load them into raw.woocommerce_orders
 # (including the billing data, customers are derived from it in staging)
 # ============================================================
@@ -9,8 +10,12 @@
 # ------------------------------------------------------------
 # 1. IMPORT LIBRARIES
 # ------------------------------------------------------------
+import json
 import os
+from datetime import date
 
+from azure.identity import DefaultAzureCredential
+from azure.storage.filedatalake import DataLakeServiceClient
 import requests
 import pandas as pd
 import mssql_python
@@ -40,7 +45,8 @@ while True:
         auth=(consumer_key, consumer_secret),
         params={
             "per_page": 100,
-            "page": page
+            "page": page,
+            "_fields": "id,status,currency,date_created,date_modified,date_paid,date_completed,customer_id,payment_method,payment_method_title,discount_total,shipping_total,total_tax,total,billing,line_items"
         }
     )
 
@@ -57,15 +63,46 @@ print(f"Number of orders extracted: {len(all_orders)}")
 
 
 # ------------------------------------------------------------
-# 3. TRANSFORM ORDERS
-# (keep the values as delivered, only convert text amounts to numbers)
+# 3. SAVE RAW DATA TO THE DATA LAKE
+# (the API response unchanged, as a JSON file)
 # ------------------------------------------------------------
 
+# Address of the Data Lake (dfs = Data Lake endpoint)
+account_url = "https://stecommercelake26.dfs.core.windows.net"
 
-def to_number(value):
-    # WooCommerce delivers amounts as text; empty text means no value
-    return float(value) if value not in (None, "") else None
+# Log in with the Azure CLI login (az login), no storage key
+credential = DefaultAzureCredential()
 
+# Connection to the storage account
+service_client = DataLakeServiceClient(
+    account_url=account_url,
+    credential=credential
+)
+
+# Connection to the raw container
+file_system_client = service_client.get_file_system_client("raw")
+
+# Today's date as text, e.g. "2026-09-27" (one file per load)
+load_date = date.today().isoformat()
+
+# Path inside the raw container; folders are created automatically
+file_path = f"woocommerce/orders/orders_{load_date}.json"
+
+# Convert the API response to JSON text
+# ensure_ascii=False keeps umlauts (ä, ö, ü) readable, indent=2 makes it readable in the portal
+json_text = json.dumps(all_orders, ensure_ascii=False, indent=2)
+
+# Upload the file (overwrite=True: a second run on the same day replaces that day's file)
+file_client = file_system_client.get_file_client(file_path)
+file_client.upload_data(json_text.encode("utf-8"), overwrite=True)
+
+print(f"Saved to Data Lake: raw/{file_path}")
+
+
+# ------------------------------------------------------------
+# 4. TRANSFORM ORDERS
+# (keep the values as delivered; amounts stay text and are converted in staging)
+# ------------------------------------------------------------
 
 # Create an empty list to store all orders
 order_records = []
@@ -84,10 +121,10 @@ for order in all_orders:
         "customer_id": order.get("customer_id"),
         "payment_method": order.get("payment_method"),
         "payment_method_title": order.get("payment_method_title"),
-        "discount_total": to_number(order.get("discount_total")),
-        "shipping_total": to_number(order.get("shipping_total")),
-        "total_tax": to_number(order.get("total_tax")),
-        "total": to_number(order.get("total")),
+        "discount_total": order.get("discount_total"),
+        "shipping_total": order.get("shipping_total"),
+        "total_tax": order.get("total_tax"),
+        "total": order.get("total"),
         "billing_first_name": billing.get("first_name"),
         "billing_last_name": billing.get("last_name"),
         "billing_email": billing.get("email"),
@@ -105,7 +142,7 @@ print(orders_df)
 
 
 # ------------------------------------------------------------
-# 4. LOAD INTO AZURE SQL
+# 5. LOAD INTO AZURE SQL
 # ------------------------------------------------------------
 
 # Azure SQL connection details

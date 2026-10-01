@@ -49,11 +49,11 @@ BEGIN
         payment_method NVARCHAR(100),
         payment_method_title NVARCHAR(255),
 
-        -- Financial information
-        discount_total DECIMAL(18,2),
-        shipping_total DECIMAL(18,2),
-        total_tax DECIMAL(18,2),
-        total DECIMAL(18,2),
+        -- Financial information (text as delivered by the API, converted in staging)
+        discount_total NVARCHAR(20),
+        shipping_total NVARCHAR(20),
+        total_tax NVARCHAR(20),
+        total NVARCHAR(20),
 
         -- Billing data (customers are derived from it in staging)
         billing_first_name NVARCHAR(100),
@@ -100,14 +100,14 @@ BEGIN
         -- Number of units purchased
         quantity INT,
 
-        -- Financial information
-        subtotal DECIMAL(18,2),
-        subtotal_tax DECIMAL(18,2),
-        total DECIMAL(18,2),
-        total_tax DECIMAL(18,2),
+        -- Financial information (text as delivered by the API, converted in staging)
+        subtotal NVARCHAR(20),
+        subtotal_tax NVARCHAR(20),
+        total NVARCHAR(20),
+        total_tax NVARCHAR(20),
 
-        -- Net price per unit, with full precision as delivered
-        price DECIMAL(18,6),
+        -- Net price per unit, with full precision as delivered (text, converted in staging)
+        price NVARCHAR(20),
 
         -- When the row was loaded
         loaded_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()

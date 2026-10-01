@@ -2,6 +2,8 @@
 # ORDER ITEMS INGESTION
 # Extract order items (line items) from WooCommerce REST API
 # and load them into raw.woocommerce_order_items
+# (no own Data Lake file: Data Factory reads the line items
+# from the orders file raw/woocommerce/orders, see extract_orders.py)
 # ============================================================
 
 
@@ -57,14 +59,8 @@ print(f"Number of orders extracted: {len(all_orders)}")
 
 # ------------------------------------------------------------
 # 3. TRANSFORM ORDER ITEMS
-# (keep the values as delivered, only convert text amounts to numbers)
+# (keep the values as delivered; amounts stay text and are converted in staging)
 # ------------------------------------------------------------
-
-
-def to_number(value):
-    # WooCommerce delivers amounts as text; empty text means no value
-    return float(value) if value not in (None, "") else None
-
 
 # Create an empty list to store all order items
 order_item_records = []
@@ -83,11 +79,11 @@ for order in all_orders:
             "name": item.get("name"),
             "sku": item.get("sku"),
             "quantity": item.get("quantity"),
-            "subtotal": to_number(item.get("subtotal")),
-            "subtotal_tax": to_number(item.get("subtotal_tax")),
-            "total": to_number(item.get("total")),
-            "total_tax": to_number(item.get("total_tax")),
-            "price": to_number(item.get("price"))
+            "subtotal": item.get("subtotal"),
+            "subtotal_tax": item.get("subtotal_tax"),
+            "total": item.get("total"),
+            "total_tax": item.get("total_tax"),
+            "price": item.get("price")
         })
 
 # Create the DataFrame
