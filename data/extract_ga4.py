@@ -1,6 +1,8 @@
 # ============================================================
 # GOOGLE ANALYTICS 4 INGESTION
-# Extract daily reports from the GA4 Data API and load them into
+# Extract daily reports from the GA4 Data API,
+# save them as JSON to the Data Lake (raw/ga4/<report>, one file per report)
+# and load them into
 #   raw.ga4_daily_traffic   raw.ga4_daily_events   raw.ga4_landing_pages
 #   raw.ga4_page_events     raw.ga4_audience
 # ============================================================
@@ -9,9 +11,12 @@
 # ------------------------------------------------------------
 # 1. IMPORT LIBRARIES
 # ------------------------------------------------------------
+import json
 import os
-from datetime import datetime
+from datetime import date
 
+from azure.identity import DefaultAzureCredential
+from azure.storage.filedatalake import DataLakeServiceClient
 import pandas as pd
 import mssql_python
 from dotenv import load_dotenv
@@ -74,20 +79,17 @@ def run_report(dimensions, metrics):
     return rows
 
 
-def to_date(value):
-    # GA4 delivers dates as text "20260315"
-    return datetime.strptime(value, "%Y%m%d").date()
-
-
 # ------------------------------------------------------------
 # 3. EXTRACT AND TRANSFORM THE REPORTS
-# (keep the values as delivered; admin pages are filtered in staging)
+# (keep the values as delivered: dates stay text like "20260315" and are
+# converted in staging, admin pages are filtered in staging;
+# only long texts are cut to the column length, because Data Factory does not cut them)
 # ------------------------------------------------------------
 
 # Daily traffic per channel, source, medium and campaign
 traffic_records = [
     {
-        "report_date": to_date(row["date"]),
+        "report_date": row["date"],
         "session_default_channel_group": row["sessionDefaultChannelGroup"],
         "session_source": row["sessionSource"][:100],
         "session_medium": row["sessionMedium"][:100],
@@ -108,7 +110,7 @@ traffic_records = [
 # Daily count of every event (page_view, add_to_cart, purchase, ...)
 event_records = [
     {
-        "report_date": to_date(row["date"]),
+        "report_date": row["date"],
         "event_name": row["eventName"],
         "event_count": row["eventCount"]
     }
@@ -118,7 +120,7 @@ event_records = [
 # Daily sessions per landing page
 landing_page_records = [
     {
-        "report_date": to_date(row["date"]),
+        "report_date": row["date"],
         # Cut very long URLs to the column length
         "landing_page": row["landingPage"][:400],
         "sessions": row["sessions"],
@@ -130,7 +132,7 @@ landing_page_records = [
 # Daily count of every event per page (e.g. page views and add-to-cart per product page)
 page_event_records = [
     {
-        "report_date": to_date(row["date"]),
+        "report_date": row["date"],
         # Cut very long URLs to the column length
         "page_path": row["pagePath"][:300],
         "event_name": row["eventName"],
@@ -142,7 +144,7 @@ page_event_records = [
 # Daily sessions per device category and country
 audience_records = [
     {
-        "report_date": to_date(row["date"]),
+        "report_date": row["date"],
         "device_category": row["deviceCategory"],
         "country": row["country"],
         "sessions": row["sessions"],
@@ -155,22 +157,60 @@ audience_records = [
     )
 ]
 
+# Report name = folder in the lake and table name raw.ga4_<report>
 reports = {
-    "raw.ga4_daily_traffic": traffic_records,
-    "raw.ga4_daily_events": event_records,
-    "raw.ga4_landing_pages": landing_page_records,
-    "raw.ga4_page_events": page_event_records,
-    "raw.ga4_audience": audience_records
+    "daily_traffic": traffic_records,
+    "daily_events": event_records,
+    "landing_pages": landing_page_records,
+    "page_events": page_event_records,
+    "audience": audience_records
 }
 
-for table, records in reports.items():
-    print(f"{table}: {len(records)} rows extracted")
+for report, records in reports.items():
+    print(f"{report}: {len(records)} rows extracted")
 
 print(pd.DataFrame(traffic_records).head())
 
 
 # ------------------------------------------------------------
-# 4. LOAD INTO AZURE SQL
+# 4. SAVE RAW DATA TO THE DATA LAKE
+# (one JSON file per report, field names = column names of the raw tables)
+# ------------------------------------------------------------
+
+# Address of the Data Lake (dfs = Data Lake endpoint)
+account_url = "https://stecommercelake26.dfs.core.windows.net"
+
+# Log in with the Azure CLI login (az login), no storage key
+credential = DefaultAzureCredential()
+
+# Connection to the storage account
+service_client = DataLakeServiceClient(
+    account_url=account_url,
+    credential=credential
+)
+
+# Connection to the raw container
+file_system_client = service_client.get_file_system_client("raw")
+
+# Today's date as text, e.g. "2026-10-01" (one file per load)
+load_date = date.today().isoformat()
+
+for report, records in reports.items():
+    # Path inside the raw container; folders are created automatically
+    file_path = f"ga4/{report}/{report}_{load_date}.json"
+
+    # ensure_ascii=False keeps umlauts (ä, ö, ü) readable, indent=2 makes it readable in the portal
+    json_text = json.dumps(records, ensure_ascii=False, indent=2)
+
+    # Upload the file (overwrite=True: a second run on the same day replaces that day's file)
+    file_client = file_system_client.get_file_client(file_path)
+    file_client.upload_data(json_text.encode("utf-8"), overwrite=True)
+
+    print(f"Saved to Data Lake: raw/{file_path}")
+
+
+# ------------------------------------------------------------
+# 5. LOAD INTO AZURE SQL
 # ------------------------------------------------------------
 
 # Azure SQL connection details
@@ -214,8 +254,8 @@ def full_refresh(table, records):
     print(f"{len(records)} rows loaded into {table}.")
 
 
-for table, records in reports.items():
-    full_refresh(table, records)
+for report, records in reports.items():
+    full_refresh(f"raw.ga4_{report}", records)
 
 # Save all five tables together
 connection.commit()

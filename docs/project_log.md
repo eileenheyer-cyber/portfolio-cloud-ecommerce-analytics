@@ -25,20 +25,23 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
-## 2026-10-01 – Orders and order items via Data Factory
+## 2026-10-01 – Orders, order items and GA4 via Data Factory
 
 **Done**
 - `extract_orders.py` saves the orders as JSON to the lake; the full pipeline (5 Copy activities) loaded all WooCommerce tables (29 / 55 / 142 / 17 / 29 rows).
+- `extract_ga4.py` saves the 5 GA4 reports as JSON to `raw/ga4/<report>`; new pipeline `pl_copy_ga4_to_raw` loaded them (353 / 1,336 / 759 / 4,591 / 456 rows).
 
 **Decisions**
 - One orders file feeds both `orders` and `order_items` (collection reference `line_items`) – same API data, no need to store it twice.
-- Order and order-item amounts stored as text in raw (like product prices) – converted in staging.
+- Amounts (orders, order items) and GA4 `report_date` stored as text in raw – converted in staging.
+- GA4 JSON uses the raw column names and long texts are cut in Python – no mapping needed, and Data Factory would fail on too-long values.
 
 **Problems & solutions**
 - Mapping import created `$['line_items'][0][…]` paths, so only the first item per order was loaded (17 instead of 29) → relative paths `['id']` with `collectionReference` set in the activity JSON.
 
 **Open / next steps**
-- [ ] Save GA4/Search Console data as JSON to the lake; trigger only after an Azure Function does the extraction
+- [ ] Search Console → lake → Data Factory
+- [ ] Trigger only after an Azure Function does the extraction
 
 ## 2026-09-30 – Products and product categories via Data Factory
 

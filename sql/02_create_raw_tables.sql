@@ -234,8 +234,8 @@ BEGIN
 
     CREATE TABLE raw.ga4_daily_traffic (
 
-        -- Day of the traffic
-        report_date DATE NOT NULL,
+        -- Day of the traffic (text as delivered, e.g. 20260315, converted in staging)
+        report_date NVARCHAR(8) NOT NULL,
 
         -- Traffic origin (GA4 dimensions)
         session_default_channel_group NVARCHAR(100) NOT NULL,
@@ -275,8 +275,8 @@ BEGIN
 
     CREATE TABLE raw.ga4_daily_events (
 
-        -- Day of the events
-        report_date DATE NOT NULL,
+        -- Day of the events (text as delivered, e.g. 20260315, converted in staging)
+        report_date NVARCHAR(8) NOT NULL,
 
         -- GA4 event name
         event_name NVARCHAR(100) NOT NULL,
@@ -307,8 +307,8 @@ BEGIN
 
     CREATE TABLE raw.ga4_landing_pages (
 
-        -- Day of the sessions
-        report_date DATE NOT NULL,
+        -- Day of the sessions (text as delivered, e.g. 20260315, converted in staging)
+        report_date NVARCHAR(8) NOT NULL,
 
         -- First page of a session (path only, e.g. /japanischer-donabe-topf-...)
         landing_page NVARCHAR(400) NOT NULL,
@@ -341,8 +341,8 @@ BEGIN
 
     CREATE TABLE raw.ga4_page_events (
 
-        -- Day of the events
-        report_date DATE NOT NULL,
+        -- Day of the events (text as delivered, e.g. 20260315, converted in staging)
+        report_date NVARCHAR(8) NOT NULL,
 
         -- Page on which the event happened (path only)
         page_path NVARCHAR(300) NOT NULL,
@@ -376,8 +376,8 @@ BEGIN
 
     CREATE TABLE raw.ga4_audience (
 
-        -- Day of the sessions
-        report_date DATE NOT NULL,
+        -- Day of the sessions (text as delivered, e.g. 20260315, converted in staging)
+        report_date NVARCHAR(8) NOT NULL,
 
         -- Visitor characteristics
         device_category NVARCHAR(50) NOT NULL,     -- desktop, mobile, tablet
