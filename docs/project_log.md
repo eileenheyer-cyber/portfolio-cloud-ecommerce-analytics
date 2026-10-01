@@ -25,6 +25,21 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
+## 2026-10-01 – Orders and order items via Data Factory
+
+**Done**
+- `extract_orders.py` saves the orders as JSON to the lake; the full pipeline (5 Copy activities) loaded all WooCommerce tables (29 / 55 / 142 / 17 / 29 rows).
+
+**Decisions**
+- One orders file feeds both `orders` and `order_items` (collection reference `line_items`) – same API data, no need to store it twice.
+- Order and order-item amounts stored as text in raw (like product prices) – converted in staging.
+
+**Problems & solutions**
+- Mapping import created `$['line_items'][0][…]` paths, so only the first item per order was loaded (17 instead of 29) → relative paths `['id']` with `collectionReference` set in the activity JSON.
+
+**Open / next steps**
+- [ ] Save GA4/Search Console data as JSON to the lake; trigger only after an Azure Function does the extraction
+
 ## 2026-09-30 – Products and product categories via Data Factory
 
 **Done**
