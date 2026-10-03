@@ -48,6 +48,18 @@ and why, what went wrong and how it was solved.
   so raw keeps them; staging normalizes the queries and merges the rows (sum clicks/impressions, recalculate CTR,
   position weighted by impressions). Alternatives rejected: normalizing in Python (transformation in the extract
   script), fault tolerance in the Copy activity (rows silently skipped).
+- **Transformations as SQL in Azure SQL, started by Data Factory** (instead of Mapping Data Flows) – the database does
+  the work at almost no cost, the logic stays readable SQL in `sql/`; Data Flows run on Spark (~€10–15/month, minutes
+  of start-up per run) and would exceed the budget. Data Factory orchestrates, Azure SQL transforms.
+- **Staging as views, mart as tables** – staging is a thin 1:1 cleaning layer per raw table: no extra load step, always
+  current, easy to change while the rules are still evolving, and fast enough at ≤ ~20k rows per table. The mart is
+  stored as tables (filled by stored procedures, full refresh, started by Data Factory) because Power BI reads it and
+  foreign keys check the model. This is the common pattern in SQL warehouses (e.g. dbt's default). Alternative
+  considered: staging as tables with its own Data Factory step (more visible, snapshot per layer) – more SQL and a
+  risk of stale data; can be switched later without changing the mart.
+- **Technical transformations in staging, business rules in the mart** – staging converts types, `''` → `NULL`, HTML
+  unescape, `product_id = 0` → `NULL`, NFC-normalizes GSC queries, URL → path, renames columns; the mart derives
+  customers, maps country codes, joins sources and adds keys. Test: would two people interpret it the same way?
 - **Data Factory files in `/adf`** – keeps them separate from `data/`, `sql/` and `docs/`. The AzureDataFactory
   OAuth app gets access to all repositories of the GitHub account (cannot be limited to one) – revoke it after grading
   (GitHub → Settings → Applications → Authorized OAuth Apps).
