@@ -1,8 +1,8 @@
 # ============================================================
 # GOOGLE SEARCH CONSOLE INGESTION
 # Extract search performance from the Search Console API,
-# save it as JSON to the Data Lake (raw/gsc/search_performance)
-# and load it into raw.gsc_search_performance
+# and save it as JSON to the Data Lake (raw/gsc/search_performance).
+# Data Factory (pl_copy_gsc_to_raw) loads it into raw.gsc_search_performance.
 # ============================================================
 
 
@@ -17,7 +17,6 @@ from urllib.parse import quote
 from azure.identity import DefaultAzureCredential
 from azure.storage.filedatalake import DataLakeServiceClient
 import pandas as pd
-import mssql_python
 from dotenv import load_dotenv
 from google.oauth2 import service_account
 from google.auth.transport.requests import AuthorizedSession
@@ -155,46 +154,3 @@ file_client = file_system_client.get_file_client(file_path)
 file_client.upload_data(json_text.encode("utf-8"), overwrite=True)
 
 print(f"Saved to Data Lake: raw/{file_path}")
-
-
-# ------------------------------------------------------------
-# 5. LOAD INTO AZURE SQL
-# ------------------------------------------------------------
-
-# Azure SQL connection details
-server = "ecommerce-analytics-sql-2026.database.windows.net"
-database = "ecommerce-analytics-db"
-
-# Create a connection to Azure SQL
-connection = mssql_python.connect(
-    f"SERVER={server};"
-    f"DATABASE={database};"
-    "Authentication=ActiveDirectoryDefault;"      # uses the Azure CLI login (az login)
-    "Encrypt=yes;"
-)
-
-cursor = connection.cursor()
-# Test the Azure SQL connection
-cursor.execute("SELECT DB_NAME()")
-database_name = cursor.fetchone()[0]
-
-print(f"Connected to database: {database_name}")
-
-# Full refresh: remove the old rows, then load all rows again.
-# Both steps are saved together with commit(), so the table is never half empty.
-cursor.execute("DELETE FROM raw.gsc_search_performance")
-
-columns = list(search_records[0].keys())
-
-cursor.executemany(
-    f"""
-    INSERT INTO raw.gsc_search_performance ({", ".join(columns)})
-    VALUES ({", ".join("?" for _ in columns)})
-    """,
-    [[record[column] for column in columns] for record in search_records]
-)
-
-# Save the changes
-connection.commit()
-
-print(f"{len(search_records)} rows successfully loaded into raw.gsc_search_performance.")

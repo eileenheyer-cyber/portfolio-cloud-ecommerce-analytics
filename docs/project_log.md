@@ -33,6 +33,9 @@ and why, what went wrong and how it was solved.
   timeout 30 minutes) loaded 20,362 rows.
 - `report_date` in `raw.gsc_search_performance` changed from `DATE` to `NVARCHAR(10)` (table dropped and recreated).
 - Removed the UNIQUE constraint `UQ_gsc_search_performance` (live table and `sql/02_create_raw_tables.sql`).
+- Removed the direct SQL load from all extract scripts – they only save JSON to the lake, Data Factory loads raw.
+  Deleted `extract_order_items.py` (order items come from the orders file) and the transform step in the
+  WooCommerce scripts (they save the unchanged API response, the transform only fed the SQL load).
 
 **Decisions**
 - GSC `report_date` stored as text in raw (e.g. `2026-03-15`) – same as GA4, converted in staging.
@@ -55,8 +58,10 @@ and why, what went wrong and how it was solved.
 
 **Open / next steps**
 - [ ] Staging for Search Console: NFC-normalize `query`, merge duplicates, convert `report_date`
-- [ ] Remove the direct SQL load from the extract scripts once all pipelines work
-- [ ] Trigger only after an Azure Function does the extraction
+- [x] Remove the direct SQL load from the extract scripts once all pipelines work
+- [ ] Trigger only after an Azure Function does the extraction; trigger passes `load_date` (today) to the pipelines
+      and starts them only after the extraction has finished
+- [ ] Connect Data Factory to GitHub (pipelines stored as JSON in the repository)
 
 ## 2026-10-01 – Orders, order items and GA4 via Data Factory
 

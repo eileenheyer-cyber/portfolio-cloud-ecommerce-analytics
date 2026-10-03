@@ -1,8 +1,8 @@
 # ============================================================
 # GOOGLE ANALYTICS 4 INGESTION
 # Extract daily reports from the GA4 Data API,
-# save them as JSON to the Data Lake (raw/ga4/<report>, one file per report)
-# and load them into
+# and save them as JSON to the Data Lake (raw/ga4/<report>, one file per report).
+# Data Factory (pl_copy_ga4_to_raw) loads them into
 #   raw.ga4_daily_traffic   raw.ga4_daily_events   raw.ga4_landing_pages
 #   raw.ga4_page_events     raw.ga4_audience
 # ============================================================
@@ -18,7 +18,6 @@ from datetime import date
 from azure.identity import DefaultAzureCredential
 from azure.storage.filedatalake import DataLakeServiceClient
 import pandas as pd
-import mssql_python
 from dotenv import load_dotenv
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
@@ -207,57 +206,3 @@ for report, records in reports.items():
     file_client.upload_data(json_text.encode("utf-8"), overwrite=True)
 
     print(f"Saved to Data Lake: raw/{file_path}")
-
-
-# ------------------------------------------------------------
-# 5. LOAD INTO AZURE SQL
-# ------------------------------------------------------------
-
-# Azure SQL connection details
-server = "ecommerce-analytics-sql-2026.database.windows.net"
-database = "ecommerce-analytics-db"
-
-# Create a connection to Azure SQL
-connection = mssql_python.connect(
-    f"SERVER={server};"
-    f"DATABASE={database};"
-    "Authentication=ActiveDirectoryDefault;"      # uses the Azure CLI login (az login)
-    "Encrypt=yes;"
-)
-
-cursor = connection.cursor()
-# Test the Azure SQL connection
-cursor.execute("SELECT DB_NAME()")
-database_name = cursor.fetchone()[0]
-
-print(f"Connected to database: {database_name}")
-
-
-def full_refresh(table, records):
-    # Remove the old rows, then insert all records again
-    cursor.execute(f"DELETE FROM {table}")
-
-    if not records:
-        print(f"No rows for {table}.")
-        return
-
-    columns = list(records[0].keys())
-
-    cursor.executemany(
-        f"""
-        INSERT INTO {table} ({", ".join(columns)})
-        VALUES ({", ".join("?" for _ in columns)})
-        """,
-        [[record[column] for column in columns] for record in records]
-    )
-
-    print(f"{len(records)} rows loaded into {table}.")
-
-
-for report, records in reports.items():
-    full_refresh(f"raw.ga4_{report}", records)
-
-# Save all five tables together
-connection.commit()
-
-print("GA4 data successfully loaded into Azure SQL.")
