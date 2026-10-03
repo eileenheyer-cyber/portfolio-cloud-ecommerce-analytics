@@ -1,0 +1,831 @@
+{
+	"name": "pl_copy_woocommerce_to_raw",
+	"properties": {
+		"description": "Kopiert alle WooCommerce-Dateien (Kategorien, Produkte, Bestellungen) aus dem Data Lake in das Schema raw (Full Refresh).",
+		"activities": [
+			{
+				"name": "copy_categories_json_to_sql",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.woocommerce_categories",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['id']"
+								},
+								"sink": {
+									"name": "category_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "$['name']"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['slug']"
+								},
+								"sink": {
+									"name": "slug",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['parent']"
+								},
+								"sink": {
+									"name": "parent_id",
+									"type": "Int64"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "woocommerce/categories",
+							"file_name": {
+								"value": "@concat('categories_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "woocommerce_categories"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_products_json_to_sql",
+				"description": "Loads the WooCommerce products JSON file from the Data Lake (raw/woocommerce/products) into raw.woocommerce_products. Full refresh: the pre-copy script deletes all rows first.\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_categories_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.woocommerce_products",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['id']"
+								},
+								"sink": {
+									"name": "product_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "$['name']"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['slug']"
+								},
+								"sink": {
+									"name": "slug",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['type']"
+								},
+								"sink": {
+									"name": "type",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['status']"
+								},
+								"sink": {
+									"name": "status",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['sku']"
+								},
+								"sink": {
+									"name": "sku",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['brands'][0]['name']"
+								},
+								"sink": {
+									"name": "brand",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['price']"
+								},
+								"sink": {
+									"name": "price",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['regular_price']"
+								},
+								"sink": {
+									"name": "regular_price",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['sale_price']"
+								},
+								"sink": {
+									"name": "sale_price",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['stock_quantity']"
+								},
+								"sink": {
+									"name": "stock_quantity",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_created']"
+								},
+								"sink": {
+									"name": "date_created",
+									"type": "DateTime"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_modified']"
+								},
+								"sink": {
+									"name": "date_modified",
+									"type": "DateTime"
+								}
+							}
+						],
+						"collectionReference": ""
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "woocommerce/products",
+							"file_name": {
+								"value": "@concat('products_', pipeline().parameters.load_date, '.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "woocommerce_products"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_product_categories_json_to_sql",
+				"description": "Loads the product-category links from the WooCommerce products JSON file (raw/woocommerce/products) into raw.woocommerce_product_categories. One row per product and category (collection reference on categories). Full refresh: the pre-copy script deletes all rows first.\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_products_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.woocommerce_product_categories",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['id']"
+								},
+								"sink": {
+									"name": "product_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "['id']"
+								},
+								"sink": {
+									"name": "category_id",
+									"type": "Int64"
+								}
+							}
+						],
+						"collectionReference": "$['categories']"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "woocommerce/products",
+							"file_name": {
+								"value": "@concat('products_', pipeline().parameters.load_date, '.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "woocommerce_product_categories"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_orders_json_to_sql",
+				"description": "Loads the orders from the WooCommerce orders JSON file (raw/woocommerce/orders) into raw.woocommerce_orders.\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_product_categories_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.woocommerce_orders",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['id']"
+								},
+								"sink": {
+									"name": "order_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "$['status']"
+								},
+								"sink": {
+									"name": "status",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['currency']"
+								},
+								"sink": {
+									"name": "currency",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_created']"
+								},
+								"sink": {
+									"name": "date_created",
+									"type": "DateTime"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_modified']"
+								},
+								"sink": {
+									"name": "date_modified",
+									"type": "DateTime"
+								}
+							},
+							{
+								"source": {
+									"path": "$['discount_total']"
+								},
+								"sink": {
+									"name": "discount_total",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['shipping_total']"
+								},
+								"sink": {
+									"name": "shipping_total",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['total']"
+								},
+								"sink": {
+									"name": "total",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['total_tax']"
+								},
+								"sink": {
+									"name": "total_tax",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['customer_id']"
+								},
+								"sink": {
+									"name": "customer_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['first_name']"
+								},
+								"sink": {
+									"name": "billing_first_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['last_name']"
+								},
+								"sink": {
+									"name": "billing_last_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['address_1']"
+								},
+								"sink": {
+									"name": "billing_address_1",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['city']"
+								},
+								"sink": {
+									"name": "billing_city",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['postcode']"
+								},
+								"sink": {
+									"name": "billing_postcode",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['country']"
+								},
+								"sink": {
+									"name": "billing_country",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['billing']['email']"
+								},
+								"sink": {
+									"name": "billing_email",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['payment_method']"
+								},
+								"sink": {
+									"name": "payment_method",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['payment_method_title']"
+								},
+								"sink": {
+									"name": "payment_method_title",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_completed']"
+								},
+								"sink": {
+									"name": "date_completed",
+									"type": "DateTime"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date_paid']"
+								},
+								"sink": {
+									"name": "date_paid",
+									"type": "DateTime"
+								}
+							}
+						],
+						"collectionReference": ""
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "woocommerce/orders",
+							"file_name": {
+								"value": "@concat('orders_', pipeline().parameters.load_date, '.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "woocommerce_orders"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_order_items_json_to_sql",
+				"description": "Loads the order line items from the WooCommerce orders JSON file (raw/woocommerce/orders) into raw.woocommerce_order_items.\n\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_orders_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.woocommerce_order_items\n",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['id']"
+								},
+								"sink": {
+									"name": "order_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "['id']"
+								},
+								"sink": {
+									"name": "item_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "['name']"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['product_id']"
+								},
+								"sink": {
+									"name": "product_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "['variation_id']"
+								},
+								"sink": {
+									"name": "variation_id",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"path": "['quantity']"
+								},
+								"sink": {
+									"name": "quantity",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"path": "['subtotal']"
+								},
+								"sink": {
+									"name": "subtotal",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['subtotal_tax']"
+								},
+								"sink": {
+									"name": "subtotal_tax",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['total']"
+								},
+								"sink": {
+									"name": "total",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['total_tax']"
+								},
+								"sink": {
+									"name": "total_tax",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['sku']"
+								},
+								"sink": {
+									"name": "sku",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['price']"
+								},
+								"sink": {
+									"name": "price",
+									"type": "String"
+								}
+							}
+						],
+						"collectionReference": "$['line_items']"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "woocommerce/orders",
+							"file_name": {
+								"value": "@concat('orders_', pipeline().parameters.load_date, '.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "woocommerce_order_items"
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"load_date": {
+				"type": "string",
+				"defaultValue": "2026-10-01"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-01T16:24:36Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

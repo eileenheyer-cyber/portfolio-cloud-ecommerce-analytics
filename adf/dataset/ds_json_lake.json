@@ -1,0 +1,36 @@
+{
+	"name": "ds_json_lake",
+	"properties": {
+		"description": "Generisches JSON-Dataset für alle Dateien im raw-Container; Ordner und Dateiname werden per Parameter übergeben.",
+		"linkedServiceName": {
+			"referenceName": "ls_adls_datalake",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"folder_path": {
+				"type": "String"
+			},
+			"file_name": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().folder_path",
+					"type": "Expression"
+				},
+				"fileSystem": "raw"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

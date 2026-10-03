@@ -1,0 +1,15 @@
+{
+	"name": "adf-ecommerce-analytics-26",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "germanywestcentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "63c45df6-d534-4aad-84ba-36f8d6f150b7",
+		"tenantId": "f419c9fe-f7b0-4d87-bee8-e8dfb2190cab"
+	}
+}

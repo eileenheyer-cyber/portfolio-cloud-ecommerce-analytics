@@ -1,0 +1,16 @@
+{
+	"name": "ls_azure_sql",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"description": "Verbindung zur Azure SQL-Datenbank ecommerce-analytics-db über die verwaltete Identität der Data Factory, ohne Passwort.",
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "ecommerce-analytics-sql-2026.database.windows.net",
+			"database": "ecommerce-analytics-db",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SystemAssignedManagedIdentity"
+		}
+	}
+}

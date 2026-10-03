@@ -1,0 +1,32 @@
+{
+	"name": "ds_sql_table",
+	"properties": {
+		"description": "Generisches SQL-Dataset für alle Tabellen; Schema und Tabellenname werden per Parameter übergeben.",
+		"linkedServiceName": {
+			"referenceName": "ls_azure_sql",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"schema_name": {
+				"type": "string"
+			},
+			"table_name": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().schema_name",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().table_name",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

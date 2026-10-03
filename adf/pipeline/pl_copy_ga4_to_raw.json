@@ -1,0 +1,335 @@
+{
+	"name": "pl_copy_ga4_to_raw",
+	"properties": {
+		"description": "Copies the five GA4 reports from the Data Lake (raw/ga4) into the raw tables in Azure SQL.\n",
+		"activities": [
+			{
+				"name": "copy_daily_traffic_json_to_sql",
+				"description": "Loads the GA4 daily traffic report from the JSON file (raw/ga4/daily_traffic) into raw.ga4_daily_traffic",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.ga4_daily_traffic",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "ga4/daily_traffic",
+							"file_name": {
+								"value": "@concat('daily_traffic_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "ga4_daily_traffic"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_daily_events_json_to_sql",
+				"description": "Loads the GA4 daily events report from the JSON file (raw/ga4/daily_events) into raw.ga4_daily_events.\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_daily_traffic_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.ga4_daily_events",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "ga4/daily_events",
+							"file_name": {
+								"value": "@concat('daily_events_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "ga4_daily_events"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_landing_pages_json_to_sql",
+				"description": "Loads the GA4 landing pages report from the JSON file (raw/ga4/landing_pages) into raw.ga4_landing_pages\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_daily_events_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.ga4_landing_pages",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "ga4/landing_pages",
+							"file_name": {
+								"value": "@concat('landing_pages_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "ga4_landing_pages"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_page_events_json_to_sql",
+				"description": "Loads the GA4 page events report from the JSON file (raw/ga4/page_events) into raw.ga4_page_events.\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_landing_pages_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.ga4_page_events",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "ga4/page_events",
+							"file_name": {
+								"value": "@concat('page_events_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "ga4_page_events"
+						}
+					}
+				]
+			},
+			{
+				"name": "copy_audience_json_to_sql",
+				"description": "Loads the GA4 audience report from the JSON file (raw/ga4/audience) into raw.ga4_audience\n",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "copy_page_events_json_to_sql",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.ga4_audience",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "ga4/audience",
+							"file_name": {
+								"value": "@concat('audience_', pipeline().parameters.load_date, '.json')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "ga4_audience"
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"load_date": {
+				"type": "string",
+				"defaultValue": "2026-10-01"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-01T20:27:10Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

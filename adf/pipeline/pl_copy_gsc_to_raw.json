@@ -1,0 +1,170 @@
+{
+	"name": "pl_copy_gsc_to_raw",
+	"properties": {
+		"description": "Loads Google Search Console search performance from the Data Lake (raw/gsc/search_performance/search_performance_<load_date>.json) into raw.gsc_search_performance. Full refresh: deletes all rows, then copies the file written by extract_gsc.py. One row per day, query, page, country, device and search type.",
+		"activities": [
+			{
+				"name": "copy_gsc_search_performance_json_to_sql",
+				"description": "JSON from the lake → raw.gsc_search_performance (full refresh via pre-copy DELETE)",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:30:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM raw.gsc_search_performance",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['report_date']"
+								},
+								"sink": {
+									"name": "report_date",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['query']"
+								},
+								"sink": {
+									"name": "query",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['page']"
+								},
+								"sink": {
+									"name": "page",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['country']"
+								},
+								"sink": {
+									"name": "country",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['device']"
+								},
+								"sink": {
+									"name": "device",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['search_type']"
+								},
+								"sink": {
+									"name": "search_type",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['clicks']"
+								},
+								"sink": {
+									"name": "clicks",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"path": "$['impressions']"
+								},
+								"sink": {
+									"name": "impressions",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ctr']"
+								},
+								"sink": {
+									"name": "ctr",
+									"type": "Double"
+								}
+							},
+							{
+								"source": {
+									"path": "$['position']"
+								},
+								"sink": {
+									"name": "position",
+									"type": "Double"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_json_lake",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": "gsc/search_performance",
+							"file_name": {
+								"value": "@concat('search_performance_', pipeline().parameters.load_date, '.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sql_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "raw",
+							"table_name": "gsc_search_performance"
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"load_date": {
+				"type": "string",
+				"defaultValue": "2026-10-03"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-03T14:59:01Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
