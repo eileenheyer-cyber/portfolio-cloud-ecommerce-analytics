@@ -33,10 +33,11 @@ Architekturkonzept aus der Konzeptionsphase (Quelle: [docs/architecture_concept.
 
 - `data/` – Python-Extraktionsskripte (`extract_*.py`): rufen WooCommerce (Bestellungen inkl. Bestellpositionen, Produkte, Kategorien), GA4 und Google Search Console per API ab und speichern die Rohdaten als JSON im Data Lake (Container `raw`); Azure Data Factory lädt sie ins Schema `raw` (Full Refresh)
 - `sql/` – SQL-Skripte für Azure SQL Database: Schemas `raw`, `staging`, `mart` und die Tabellen der Raw-Schicht
+- `adf/` – Azure Data Factory (per Git-Integration aus dem Portal gespeichert): Pipelines, Datasets und verknüpfte Dienste als JSON; die Pipelines laden die JSON-Dateien aus dem Data Lake ins Schema `raw`
 - Azure Data Factory – Transformationen: `raw` → `staging` (Bereinigung) → `mart` (Dimensionen und Fakten für Power BI); wird im Azure-Portal erstellt *(geplant)*
 - `terraform/` – Infrastructure as Code: Azure-Ressourcen (Resource Group, SQL Server, Datenbank, Function App) *(geplant)*
 - `function_app/` – Azure Functions (Python): automatisierter, zeitgesteuerter Ablauf der Extraktionsskripte *(geplant)*
-- `docs/` – Tabellendesign und Projektlog
+- `docs/` – Tabellendesign, Pipeline-Anleitung (`pipeline_guide.md`) und Projektlog
 - `.env.example` – Vorlage für die Zugangsdaten; die echten Werte stehen in `.env` (nicht im Repository)
 
 ## Status

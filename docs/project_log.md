@@ -36,6 +36,9 @@ and why, what went wrong and how it was solved.
 - Removed the direct SQL load from all extract scripts – they only save JSON to the lake, Data Factory loads raw.
   Deleted `extract_order_items.py` (order items come from the orders file) and the transform step in the
   WooCommerce scripts (they save the unchanged API response, the transform only fed the SQL load).
+- Connected Data Factory to GitHub (collaboration branch `main`, root folder `/adf`, publish branch `adf_publish`,
+  existing resources imported): 3 pipelines, 2 datasets, 2 linked services, no secrets.
+- `docs/pipeline_guide.md`: step-by-step guide from the APIs to the raw tables, including pitfalls.
 
 **Decisions**
 - GSC `report_date` stored as text in raw (e.g. `2026-03-15`) – same as GA4, converted in staging.
@@ -45,6 +48,9 @@ and why, what went wrong and how it was solved.
   so raw keeps them; staging normalizes the queries and merges the rows (sum clicks/impressions, recalculate CTR,
   position weighted by impressions). Alternatives rejected: normalizing in Python (transformation in the extract
   script), fault tolerance in the Copy activity (rows silently skipped).
+- **Data Factory files in `/adf`** – keeps them separate from `data/`, `sql/` and `docs/`. The AzureDataFactory
+  OAuth app gets access to all repositories of the GitHub account (cannot be limited to one) – revoke it after grading
+  (GitHub → Settings → Applications → Authorized OAuth Apps).
 
 **Problems & solutions**
 - `PathNotFound` for `search_performance_2026-10-03 .json` although the pipeline code was clean → the space came from
@@ -61,7 +67,8 @@ and why, what went wrong and how it was solved.
 - [x] Remove the direct SQL load from the extract scripts once all pipelines work
 - [ ] Trigger only after an Azure Function does the extraction; trigger passes `load_date` (today) to the pipelines
       and starts them only after the extraction has finished
-- [ ] Connect Data Factory to GitHub (pipelines stored as JSON in the repository)
+- [x] Connect Data Factory to GitHub (pipelines stored as JSON in the repository)
+- [ ] Optional: explicit mapping (*Schemas importieren*) for the 5 GA4 Copy activities (currently mapped by name)
 
 ## 2026-10-01 – Orders, order items and GA4 via Data Factory
 
