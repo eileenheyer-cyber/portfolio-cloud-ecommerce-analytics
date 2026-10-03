@@ -25,6 +25,39 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
+## 2026-10-03 – Search Console via Data Factory
+
+**Done**
+- `extract_gsc.py` saves the search performance as JSON to `raw/gsc/search_performance`; new pipeline
+  `pl_copy_gsc_to_raw` (one Copy activity, pre-copy script `DELETE FROM raw.gsc_search_performance`,
+  timeout 30 minutes) loaded 20,362 rows.
+- `report_date` in `raw.gsc_search_performance` changed from `DATE` to `NVARCHAR(10)` (table dropped and recreated).
+- Removed the UNIQUE constraint `UQ_gsc_search_performance` (live table and `sql/02_create_raw_tables.sql`).
+
+**Decisions**
+- GSC `report_date` stored as text in raw (e.g. `2026-03-15`) – same as GA4, converted in staging.
+- **No unique key on the Search Console raw table** – Google delivers some queries twice in different Unicode forms
+  (`é` as one character `U+00E9` and as `e` + combining accent `U+0301`); Data Factory normalizes both to the same
+  text, so 4 keys collided (`desayuno japonés tradicional`, US, desktop, image search). Both rows are real source data,
+  so raw keeps them; staging normalizes the queries and merges the rows (sum clicks/impressions, recalculate CTR,
+  position weighted by impressions). Alternatives rejected: normalizing in Python (transformation in the extract
+  script), fault tolerance in the Copy activity (rows silently skipped).
+
+**Problems & solutions**
+- `PathNotFound` for `search_performance_2026-10-03 .json` although the pipeline code was clean → the space came from
+  the `load_date` value in the *Debuggen* / *Schemas importieren* popups, which keep the last entered value; typed it again
+- *Schemas importieren* kept failing with the same space → temporarily set `file_name` to the plain file name,
+  imported the schema, then restored the expression (the mapping stores only column names, not the file)
+- `Violation of UNIQUE KEY constraint 'UQ_gsc_search_performance'` although the Python load of the same data worked
+  → Unicode normalization in Data Factory (see decisions); found by comparing the lake file with different
+  normalization rules. Data Factory rolls back the whole copy on an error, so the table was empty afterwards
+- Mapping types show `any` for the JSON source → normal without a stored dataset schema; the SQL column types decide
+
+**Open / next steps**
+- [ ] Staging for Search Console: NFC-normalize `query`, merge duplicates, convert `report_date`
+- [ ] Remove the direct SQL load from the extract scripts once all pipelines work
+- [ ] Trigger only after an Azure Function does the extraction
+
 ## 2026-10-01 – Orders, order items and GA4 via Data Factory
 
 **Done**

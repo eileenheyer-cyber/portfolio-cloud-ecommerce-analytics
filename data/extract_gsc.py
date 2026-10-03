@@ -1,6 +1,7 @@
 # ============================================================
 # GOOGLE SEARCH CONSOLE INGESTION
-# Extract search performance from the Search Console API
+# Extract search performance from the Search Console API,
+# save it as JSON to the Data Lake (raw/gsc/search_performance)
 # and load it into raw.gsc_search_performance
 # ============================================================
 
@@ -8,10 +9,13 @@
 # ------------------------------------------------------------
 # 1. IMPORT LIBRARIES
 # ------------------------------------------------------------
+import json
 import os
 from datetime import date, timedelta
 from urllib.parse import quote
 
+from azure.identity import DefaultAzureCredential
+from azure.storage.filedatalake import DataLakeServiceClient
 import pandas as pd
 import mssql_python
 from dotenv import load_dotenv
@@ -79,7 +83,9 @@ def get_rows(search_type):
 
 # ------------------------------------------------------------
 # 3. EXTRACT AND TRANSFORM
-# (keep the values as delivered)
+# (keep the values as delivered: dates stay text like "2026-03-15" and are
+# converted in staging; only long texts are cut to the column length,
+# because Data Factory does not cut them)
 # ------------------------------------------------------------
 
 # Create an empty list to store all rows
@@ -93,7 +99,7 @@ for search_type in search_types:
         report_date, query, page, country, device = row["keys"]
 
         search_records.append({
-            "report_date": date.fromisoformat(report_date),
+            "report_date": report_date,
             # Cut very long values to the column length
             "query": query[:300],
             "page": page[:500],
@@ -116,7 +122,43 @@ print(search_df.head())
 
 
 # ------------------------------------------------------------
-# 4. LOAD INTO AZURE SQL
+# 4. SAVE RAW DATA TO THE DATA LAKE
+# (field names = column names of the raw table)
+# ------------------------------------------------------------
+
+# Address of the Data Lake (dfs = Data Lake endpoint)
+account_url = "https://stecommercelake26.dfs.core.windows.net"
+
+# Log in with the Azure CLI login (az login), no storage key
+credential = DefaultAzureCredential()
+
+# Connection to the storage account
+service_client = DataLakeServiceClient(
+    account_url=account_url,
+    credential=credential
+)
+
+# Connection to the raw container
+file_system_client = service_client.get_file_system_client("raw")
+
+# Today's date as text, e.g. "2026-10-01" (one file per load)
+load_date = date.today().isoformat()
+
+# Path inside the raw container; folders are created automatically
+file_path = f"gsc/search_performance/search_performance_{load_date}.json"
+
+# ensure_ascii=False keeps umlauts (ä, ö, ü) readable, indent=2 makes it readable in the portal
+json_text = json.dumps(search_records, ensure_ascii=False, indent=2)
+
+# Upload the file (overwrite=True: a second run on the same day replaces that day's file)
+file_client = file_system_client.get_file_client(file_path)
+file_client.upload_data(json_text.encode("utf-8"), overwrite=True)
+
+print(f"Saved to Data Lake: raw/{file_path}")
+
+
+# ------------------------------------------------------------
+# 5. LOAD INTO AZURE SQL
 # ------------------------------------------------------------
 
 # Azure SQL connection details

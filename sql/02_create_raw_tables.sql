@@ -417,8 +417,8 @@ BEGIN
 
     CREATE TABLE raw.gsc_search_performance (
 
-        -- Day of the searches
-        report_date DATE NOT NULL,
+        -- Day of the searches (text as delivered, e.g. 2026-03-15, converted in staging)
+        report_date NVARCHAR(10) NOT NULL,
 
         -- What was searched and which page was shown
         query NVARCHAR(300) NOT NULL,
@@ -438,13 +438,12 @@ BEGIN
         position FLOAT,                        -- average position, 1 = top
 
         -- When the row was loaded
-        loaded_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        loaded_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 
-        -- One row per day, query, page, country, device and search type.
-        -- UNIQUE instead of PRIMARY KEY: the long text columns exceed the
-        -- 900-byte limit of a primary key, UNIQUE allows up to 1,700 bytes.
-        CONSTRAINT UQ_gsc_search_performance
-            UNIQUE (report_date, query, page, country, device, search_type)
+        -- No unique key: Google delivers some queries twice in different Unicode
+        -- forms (e.g. "é" as one character and as "e" + accent). Data Factory
+        -- normalizes them to the same text, so they would collide.
+        -- Staging normalizes the queries and merges these rows.
 
     );
 
