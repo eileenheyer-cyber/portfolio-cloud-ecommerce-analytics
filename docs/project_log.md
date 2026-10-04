@@ -25,6 +25,45 @@ and why, what went wrong and how it was solved.
 - [ ]
 -->
 
+## 2026-10-04 – Staging layer: 11 views
+
+**Done**
+- `sql/03_create_staging_views.sql`: one view per raw table (5 WooCommerce, 5 GA4, 1 Search Console), all created
+  in Azure SQL and checked against raw (row counts; for Search Console also the sums of clicks and impressions and the
+  unique key). Cleaning rules per view: `docs/table_design.md`, section 4.
+- Data checks before each view (HTML entities, decimal separator, empty strings, `0` as "no ID", date formats,
+  `(not set)`, URL formats) – results and mart notes in `docs/table_design.md`, sections 5–7.
+
+**Decisions**
+- `''` → `NULL` and `0` as "no ID" → `NULL` (`parent_id`, `customer_id`, `product_id`, `variation_id`) – a missing
+  value is always `NULL`.
+- Amounts with `CAST`, not `TRY_CAST` – an unexpected format fails loudly instead of silently becoming `NULL`.
+  Order item `price` as `DECIMAL(18,8)` (up to 7 decimals delivered), all other amounts `DECIMAL(10,2)`.
+- `billing_email` trimmed and in lower case – the mart's customer key (hash of the e-mail) needs one spelling per
+  address. Customer = normalized e-mail for all orders, not `customer_id` with a fallback (14 of 17 orders are guest
+  orders; a guest who later opens an account would count twice).
+- GA4 `(not set)` kept – GA4's label for "could not be measured", not an empty value.
+- Search Console: duplicates merged with `GROUP BY`; `ctr` recalculated from the sums, `position` weighted by
+  impressions. No NFC normalization in SQL needed – Data Factory had already normalized the queries, so the pairs are
+  identical text. New column `page_path` (domain, query string and trailing slash removed) to match GA4 paths.
+- Values are not rounded in staging – rounding is formatting for Power BI.
+- `loaded_at` dropped from all views; `slug` kept in categories (category page URLs); `sku` kept although not needed
+  for the analysis.
+
+**Problems & solutions**
+- All objects "invalid" in a new query window → the window was connected to `master` (`SELECT DB_NAME()`); switched
+  with *MS SQL: Change Database* (`USE` does not work in Azure SQL Database). New query windows from the SQL Server
+  sidebar (*Azure ECommerce SQL* → *New Query*) start in the right database.
+- `LIMIT 20` fails → T-SQL uses `SELECT TOP 20` or `OFFSET … FETCH`.
+- GSC URLs end with `/`, GA4 paths do not → `page_path` removes the trailing slash; checked: GSC and GA4 paths now
+  match.
+
+**Open / next steps**
+- [ ] Mart design (`docs/table_design.md`, section 5): business questions, dimensions, facts
+- [ ] Stored procedures to fill the mart, started by Data Factory
+- [ ] CSV with purchase prices per `product_id` (margins)
+- [ ] Check the Austrian order with `total_tax = 0.00` in WooCommerce (tax settings)
+
 ## 2026-10-03 – Search Console via Data Factory
 
 **Done**
@@ -75,7 +114,7 @@ and why, what went wrong and how it was solved.
 - Mapping types show `any` for the JSON source → normal without a stored dataset schema; the SQL column types decide
 
 **Open / next steps**
-- [ ] Staging for Search Console: NFC-normalize `query`, merge duplicates, convert `report_date`
+- [x] Staging for Search Console: NFC-normalize `query`, merge duplicates, convert `report_date`
 - [x] Remove the direct SQL load from the extract scripts once all pipelines work
 - [ ] Trigger only after an Azure Function does the extraction; trigger passes `load_date` (today) to the pipelines
       and starts them only after the extraction has finished
